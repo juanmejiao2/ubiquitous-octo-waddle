@@ -64,7 +64,7 @@ int main() {
 
     // 7. Simular la liberación final
     medidor.liberarMemoriaHeap(bytesRed);
-    cout << "Memoria Heap remanente al finalizar: " << medidor.obtenerMemoriaHeap() << " bytes." << endl;
+    cout << "Memoria Heap remanente al finalizar: " << medidor.getMemoriaHeap() << " bytes." << endl;
     cout << "\n=== PRUEBA COMPLETADA EXITOSAMENTE ===" << endl;
 
     return 0;
