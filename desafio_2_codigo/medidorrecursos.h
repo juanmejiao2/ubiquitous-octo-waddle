@@ -1,21 +1,21 @@
 #ifndef MEDIDORRECURSOS_H
 #define MEDIDORRECURSOS_H
 
+#include <cstddef>
+
 class MedidorRecurso {
 private:
     long long iteracionesActuales;
-    unsigned long long memoriaHeapBytes;
-    unsigned long long memoriaStackBytes;
+    size_t memoriaHeapBytes;
+    size_t memoriaStackBytes;
 
 public:
-    // Constructores y Destructor explícitos
     MedidorRecurso();
-    MedidorRecurso(long long iteraciones, unsigned long long heap, unsigned long long stack);
+    MedidorRecurso(long long iteraciones, size_t heap, size_t stack);
     MedidorRecurso(const MedidorRecurso& otra);
     MedidorRecurso& operator=(const MedidorRecurso& otra);
     ~MedidorRecurso();
 
-    // Métodos inline para bucles críticos
     inline void registrarIteracion(int cantidad = 1) {
         iteracionesActuales += cantidad;
     }
@@ -24,22 +24,16 @@ public:
         iteracionesActuales = 0;
     }
 
-    // Setters explícitos
-    void setIteraciones(long long iteraciones);
-    void setMemoriaHeap(unsigned long long bytes);
-    void setMemoriaStack(unsigned long long bytes);
-
-    // Getters explícitos
-    long long getIteraciones() const;
-    unsigned long long getMemoriaHeap() const;
-    unsigned long long getMemoriaStack() const;
-
-    // Auditoría de Heap
-    void registrarMemoriaHeap(unsigned long long bytes);
-    void liberarMemoriaHeap(unsigned long long bytes);
-
-    // Reporte por consola
+    void registrarMemoriaHeap(size_t bytes);
     void reportarRecursos() const;
+
+    long long getIteraciones() const;
+    size_t getMemoriaHeap() const;
+    size_t getMemoriaStack() const;
+
+    void setIteraciones(long long iteraciones);
+    void setMemoriaHeap(size_t bytes);
+    void setMemoriaStack(size_t bytes);
 };
 
 #endif // MEDIDORRECURSOS_H

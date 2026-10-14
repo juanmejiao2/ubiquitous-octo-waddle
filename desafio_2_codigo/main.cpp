@@ -1,71 +1,69 @@
 #include <iostream>
-#include "RedAmigos.h"
-#include "medidorrecursos.h"
+#include "sistemaudeabook.h"
 
 using namespace std;
 
 int main() {
-    cout << "=== PRUEBA DE INTEGRACION: REDAMIGOS + MEDIDORRECURSO ===" << endl << endl;
+    cout << "=================================================" << endl;
+    cout << "   PRUEBA DE COMPILACION E INTEGRACION SISTEMA   " << endl;
+    cout << "=================================================" << endl;
 
-    // 1. Instanciar el medidor
-    MedidorRecurso medidor;
+    // 1. Instanciación del sistema principal
+    SistemaUdeaBook sistema;
 
-    int numUsuarios = 5;
-    // Tamaño exacto en Heap reservado por la matriz 1D (bool*)
-    unsigned long long bytesRed = sizeof(bool) * numUsuarios * numUsuarios;
+    // 2. Simulación de carga de datos
+    sistema.cargarDatos();
 
-    // 2. Crear la red y registrar la reserva de memoria en el medidor
-    cout << "[+] Creando RedAmigos para " << numUsuarios << " usuarios..." << endl;
-    RedAmigos red(numUsuarios);
-    medidor.registrarMemoriaHeap(bytesRed);
+    // 3. Crear usuarios de prueba con el constructor parametrizado
+    Usuario u1(
+        Cadena("carlos123"),
+        Cadena("01/01/2000"),
+        Cadena("carlos@udea.edu.co"),
+        Cadena("foto1.jpg"),
+        Cadena("pass123"),
+        Cadena("Medellin"),
+        Cadena("Colombia"),
+        Cadena("10/02/2024")
+        );
 
-    // 3. Registrar amistades
-    cout << "[+] Registrando relaciones de amistad..." << endl;
+    Usuario u2(
+        Cadena("maria_p"),
+        Cadena("15/05/2001"),
+        Cadena("maria@udea.edu.co"),
+        Cadena("foto2.jpg"),
+        Cadena("secret456"),
+        Cadena("Envigado"),
+        Cadena("Colombia"),
+        Cadena("12/02/2024")
+        );
 
-    // Usuario 0 es amigo de 1 y 2
-    red.registrarAmistad(0, 1);
-    medidor.registrarIteracion();
+    // 4. Inserción manual en el arreglo dinámico de usuarios
+    sistema.getUsuarios().agregar(u1);
+    sistema.getUsuarios().agregar(u2);
 
-    red.registrarAmistad(0, 2);
-    medidor.registrarIteracion();
+    cout << "-> Usuarios registrados en el arreglo: " << sistema.getUsuarios().GETTAMANIO() << endl;
 
-    // Usuario 3 es amigo de 1 y 2
-    red.registrarAmistad(3, 1);
-    medidor.registrarIteracion();
-
-    red.registrarAmistad(3, 2);
-    medidor.registrarIteracion();
-
-    // 4. Probar consultas de adyacencia
-    cout << "\n--- CONSULTAS DE DOMINIO ---" << endl;
-    cout << "¿Usuario 0 y Usuario 1 son amigos?: " << (red.sonAmigos(0, 1) ? "SI" : "NO") << endl;
-    cout << "¿Usuario 0 y Usuario 3 son amigos?: " << (red.sonAmigos(0, 3) ? "SI" : "NO") << endl;
-
-    // Conteo de amigos en común (recorre N elementos)
-    int comunes = red.contarAmigosEnComun(0, 3);
-    medidor.registrarIteracion(numUsuarios); // Auditoría: el algoritmo iteró N veces
-    cout << "Amigos en comun entre Usuario 0 y 3 (esperado: 2): " << comunes << endl;
-
-    // 5. Prueba de la Regla de los 3 (Copia profunda)
-    cout << "\n[+] Probando copia profunda y destructor en bloque aislado..." << endl;
-    {
-        RedAmigos copiaRed = red; // Invoca constructor de copia
-        medidor.registrarMemoriaHeap(bytesRed); // Se reservó un segundo bloque en Heap
-
-        cout << "  -> Amigos en comun en la copia: " << copiaRed.contarAmigosEnComun(0, 3) << endl;
-
-        // Al cerrar este bloque {}, copiaRed se destruye automáticamente
-        medidor.liberarMemoriaHeap(bytesRed);
-        cout << "  -> Copia destruida y memoria descontada del medidor." << endl;
+    // 5. Prueba de autenticación
+    bool loginOk = sistema.iniciarSesion(Cadena("carlos@udea.edu.co"), Cadena("pass123"));
+    if (loginOk) {
+        cout << "-> [OK] Inicio de sesion correcto para el usuario autenticado." << endl;
+    } else {
+        cout << "-> [FAIL] Fallo en el inicio de sesion." << endl;
     }
 
-    // 6. Ver reporte de métricas acumuladas
-    medidor.reportarRecursos();
+    // 6. Prueba de interacción (Solicitudes y Mensajes)
+    sistema.enviarSolicitudAmistad(Cadena("maria_p"));
+    cout << "-> [OK] Solicitud enviada a maria_p" << endl;
 
-    // 7. Simular la liberación final
-    medidor.liberarMemoriaHeap(bytesRed);
-    cout << "Memoria Heap remanente al finalizar: " << medidor.getMemoriaHeap() << " bytes." << endl;
-    cout << "\n=== PRUEBA COMPLETADA EXITOSAMENTE ===" << endl;
+    sistema.enviarMensaje(Cadena("maria_p"), Cadena("Hola Maria, probando la integracion de clases."));
+    cout << "-> [OK] Mensaje enviado a maria_p" << endl;
+
+    // 7. Generación de reporte de rendimiento
+    sistema.getMedidor().reportarRecursos();
+
+    cout << "=================================================" << endl;
+    cout << "   COMPILACION Y ENLACE EXITOSOS SIN ERRORES     " << endl;
+    cout << "=================================================" << endl;
 
     return 0;
 }
