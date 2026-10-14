@@ -34,7 +34,7 @@ public:
             elementos[i]=copia.elementos[i];
         }
     }
-    ArregloDinamico(){
+    ~ArregloDinamico(){
         delete[] elementos;
     }
     ArregloDinamico& operator=(const ArregloDinamico& copia){
