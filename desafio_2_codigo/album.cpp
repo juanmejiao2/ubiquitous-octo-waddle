@@ -12,6 +12,25 @@ Album::Album(Cadena nombre, Cadena ruta, Cadena privacidad){
     Privacidad= privacidad;
 }
 
+Album::Album(const Album& copia){
+    nombreAlbum = copia.nombreAlbum;
+    rutaAlmacenamiento = copia.rutaAlmacenamiento;
+    Privacidad = copia.Privacidad;
+    fotos = copia.fotos;
+}
+
+Album& Album::operator=(const Album& copia) {
+    if (this == &copia){
+        return *this;
+    }
+    nombreAlbum = copia.nombreAlbum;
+    rutaAlmacenamiento = copia.rutaAlmacenamiento;
+    Privacidad = copia.Privacidad;
+    fotos = copia.fotos;
+    return *this;
+}
+
+
 void Album::agregarFoto(const Foto& foto){
     fotos.agregar(foto);
 }
