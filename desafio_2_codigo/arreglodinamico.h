@@ -38,7 +38,7 @@ public:
         delete[] elementos;
     }
     ArregloDinamico& operator=(const ArregloDinamico& copia){
-        if(this==&copia){
+        if(this== &copia){
             return *this;
         }
         delete[] elementos;
@@ -50,11 +50,11 @@ public:
         }
         return *this;
     }
-    void agregar(const T& elemento){
+        void agregar(const T& elemento){
         if (tamanio>=capacidad){
-            redimensionar();
+        redimensionar();
         }
-        elementos[tamanio]=elemento;
+    elementos[tamanio]=elemento;
         tamanio++;
     }
 

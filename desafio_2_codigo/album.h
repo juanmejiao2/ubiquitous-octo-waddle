@@ -15,7 +15,8 @@ private:
 public:
     Album();
     Album(Cadena nombre, Cadena ruta, Cadena privacidad);
-
+    Album(const Album& copia);
+    Album& operator=(const Album& copia);
     void agregarFoto(const Foto& foto);
 
     ArregloDinamico<Foto>& GETFotos();
