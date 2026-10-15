@@ -17,7 +17,15 @@ Usuario::Usuario(Cadena nombreusuario, Cadena fechanacimiento, Cadena correo, Ca
 
 Cadena Usuario::GETNombreUsuario() const{
     return NombreUsuario;
-}
+}Cadena Usuario::GETFechaNacimiento() const { return FechaNacimiento; }
+Cadena Usuario::GETCorreo() const { return Correo; }
+Cadena Usuario::GETFotoPerfil() const { return FotoPerfil; }
+Cadena Usuario::GETContrasena() const { return Contrasena; }
+Cadena Usuario::GETCiudad() const { return Ciudad; }
+Cadena Usuario::GETPais() const { return Pais; }
+Cadena Usuario::GETFechaInscripcion() const { return FechaInscripcion; }
+ArregloDinamico<SolicitudAmistad>& Usuario::GETSolicitudes() { return solicitudes; }
+
 
 bool Usuario::validarContrasenia(Cadena pass) const{
     return true;

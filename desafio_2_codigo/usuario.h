@@ -6,8 +6,11 @@
 #include "mensaje.h"
 #include "solicitudamistad.h"
 #include "album.h"
+class sistemaudeabook;
+
 
 class Usuario{
+    friend class sistemaudeabook;
 private:
     Cadena NombreUsuario;
     Cadena FechaNacimiento;

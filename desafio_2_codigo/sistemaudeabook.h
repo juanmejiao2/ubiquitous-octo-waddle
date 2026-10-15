@@ -8,6 +8,8 @@
 #include "cadena.h"
 #include "mensaje.h"
 #include "solicitudamistad.h"
+#include<fstream>
+#include<iostream>
 
 class SistemaUdeaBook {
 private:
@@ -17,6 +19,8 @@ private:
     int usuarioAutenticadoIndex;
     bool yaAlternoFotos;
 
+    Cadena leerCadenaDesdeArchivo(std::ifstream& archivo, char delimitador);
+
 public:
     SistemaUdeaBook();
     SistemaUdeaBook(const SistemaUdeaBook& otro);
@@ -25,7 +29,9 @@ public:
 
     void cargarDatos();
     void guardarDatos();
+    void ejecutarMenu();
     bool iniciarSesion(Cadena correo, Cadena contrasena);
+    bool registrarUsuario(const Usuario& nuevoUsuario);
     void mostrarMejoresAmigos();
     void cambiarFotosPerfil();
     void enviarSolicitudAmistad(Cadena receptor);
