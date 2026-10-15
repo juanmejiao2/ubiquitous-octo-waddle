@@ -6,10 +6,8 @@
 #include "medidorrecursos.h"
 #include "arreglodinamico.h"
 #include "cadena.h"
-#include "mensaje.h"
-#include "solicitudamistad.h"
 #include<fstream>
-#include<iostream>
+
 
 class SistemaUdeaBook {
 private:

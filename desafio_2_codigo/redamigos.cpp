@@ -1,6 +1,6 @@
 #include "redamigos.h"
 
-using namespace std;
+
 
 void RedAmigos::liberarMemoria() {
     if (matrizConexiones != nullptr) {

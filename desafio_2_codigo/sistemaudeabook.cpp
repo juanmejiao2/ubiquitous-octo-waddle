@@ -1,4 +1,5 @@
 #include "sistemaudeabook.h"
+#include <iostream>
 
 using namespace std;
 
@@ -86,28 +87,28 @@ void SistemaUdeaBook::guardarDatos() {
     ofstream archivo("datos.txt");
     if (!archivo.is_open()) return;
 
-    int totalUsuarios = usuarios.GETTAMANIO();
+    int totalUsuarios = usuarios.GETTamanio();
     archivo << "[USUARIOS]\n" << totalUsuarios << "\n";
     for (int i = 0; i < totalUsuarios; ++i) {
         medidor.registrarIteracion();
-        archivo << usuarios[i].NombreUsuario.GETDatos() << ";"
-                << usuarios[i].FechaNacimiento.GETDatos() << ";"
-                << usuarios[i].Correo.GETDatos() << ";"
-                << usuarios[i].FotoPerfil.GETDatos() << ";"
-                << usuarios[i].Contrasena.GETDatos() << ";"
-                << usuarios[i].Ciudad.GETDatos() << ";"
-                << usuarios[i].Pais.GETDatos() << ";"
-                << usuarios[i].FechaInscripcion.GETDatos() << "\n";
+        archivo << usuarios[i].GETNombreUsuario().GETDatos() << ";"
+                << usuarios[i].GETFechaNacimiento().GETDatos() << ";"
+                << usuarios[i].GETCorreo().GETDatos() << ";"
+                << usuarios[i].GETFotoPerfil().GETDatos() << ";"
+                << usuarios[i].GETContrasena().GETDatos() << ";"
+                << usuarios[i].GETCiudad().GETDatos() << ";"
+                << usuarios[i].GETPais().GETDatos() << ";"
+                << usuarios[i].GETFechaInscripcion().GETDatos() << "\n";
     }
     archivo.close();
 }
 
 bool SistemaUdeaBook::iniciarSesion(Cadena correo, Cadena contrasena) {
     medidor.registrarIteracion();
-    int total = usuarios.GETTAMANIO();
+    int total = usuarios.GETTamanio();
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
-        if (usuarios[i].correo == correo && usuarios[i].validarContrasenia(contrasena)) {
+        if (usuarios[i].GETCorreo() == correo && usuarios[i].validarContrasenia(contrasena)) {
             usuarioAutenticadoIndex = i;
             return true;
         }
@@ -115,13 +116,13 @@ bool SistemaUdeaBook::iniciarSesion(Cadena correo, Cadena contrasena) {
     return false;
 }
 
-bool SistemaUdeaBook::registrarUsuario(const Usuario& nuevoUsuario) {
+bool SistemaUdeaBook::registrarUsuario(const Usuario& nuevoUsuario){
     medidor.registrarIteracion();
-    int total = usuarios.GETTAMANIO();
+    int total = usuarios.GETTamanio();
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
-        if (usuarios[i].NombreUsuario() == nuevoUsuario.NombreUsuario() ||
-            usuarios[i].Correo == nuevoUsuario.correo) {
+        if (usuarios[i].GETNombreUsuario() == nuevoUsuario.GETNombreUsuario() ||
+            usuarios[i].GETCorreo() == nuevoUsuario.GETCorreo() ){
             return false;
         }
     }
@@ -146,13 +147,13 @@ void SistemaUdeaBook::enviarSolicitudAmistad(Cadena receptor) {
     medidor.registrarIteracion();
     if (usuarioAutenticadoIndex == -1) return;
 
-    Cadena emisor = usuarios[usuarioAutenticadoIndex].NombreUsuario;
+    Cadena emisor = usuarios[usuarioAutenticadoIndex].GETNombreUsuario();
     SolicitudAmistad sol(emisor, receptor);
 
-    int total = usuarios.GETTAMANIO();
+    int total = usuarios.GETTamanio();
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
-        if (usuarios[i].NombreUsuario == receptor) {
+        if (usuarios[i].GETNombreUsuario() == receptor) {
             usuarios[i].recibirSolicitud(sol);
             cout << "Solicitud enviada a " << receptor.GETDatos() << endl;
             return;
@@ -165,8 +166,8 @@ void SistemaUdeaBook::aceptarSolicitudAmistad(Cadena emisor) {
     medidor.registrarIteracion();
     if (usuarioAutenticadoIndex == -1) return;
 
-        ArregloDinamico<SolicitudAmistad>& solRecibidas = usuarios[usuarioAutenticadoIndex].solicitudes;
-    int total = solRecibidas.GETTAMANIO();
+        ArregloDinamico<SolicitudAmistad>& solRecibidas = usuarios[usuarioAutenticadoIndex].GETSolicitudes();
+    int total = solRecibidas.GETTamanio();
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
         if (solRecibidas[i].GETEmisor() == emisor && solRecibidas[i].GETEstado() == Cadena("Pendiente")) {
@@ -185,13 +186,13 @@ void SistemaUdeaBook::verSugerenciasAmistad(int idUsuario) {
 
 void SistemaUdeaBook::visitarPerfilAmigo(Cadena nombreAmigo) {
     medidor.registrarIteracion();
-    int total = usuarios.GETTAMANIO();
+    int total = usuarios.GETTamanio();
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
         if (usuarios[i].GETNombreUsuario() == nombreAmigo) {
             cout << "\n=== PERFIL DE " << nombreAmigo.GETDatos() << " ===" << endl;
-            cout << "Ciudad: " << usuarios[i].ciudad.GETDatos() << endl;
-            cout << "Pais: " << usuarios[i].pais.GETDatos() << endl;
+            cout << "Ciudad: " << usuarios[i].GETCiudad().GETDatos() << endl;
+            cout << "Pais: " << usuarios[i].GETPais().GETDatos() << endl;
             return;
         }
     }
@@ -202,10 +203,10 @@ void SistemaUdeaBook::enviarMensaje(Cadena receptor, Cadena contenido) {
     medidor.registrarIteracion();
     if (usuarioAutenticadoIndex == -1) return;
 
-    Cadena emisor = usuarios[usuarioAutenticadoIndex].NombreUsuario;
+    Cadena emisor = usuarios[usuarioAutenticadoIndex].GETNombreUsuario();
     Mensaje msj(emisor, receptor, contenido, Cadena("Sin fecha"));
 
-    int total = usuarios.GETTAMANIO();
+    int total = usuarios.GETTamanio();
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
         if (usuarios[i].GETNombreUsuario() == receptor) {
@@ -221,8 +222,8 @@ void SistemaUdeaBook::leerNuevosMensajes() {
     medidor.registrarIteracion();
     if (usuarioAutenticadoIndex == -1) return;
 
-    ArregloDinamico<Mensaje>& recibidos = usuarios[usuarioAutenticadoIndex].mensajesRecibidos;
-    int total = recibidos.GETTAMANIO();
+    ArregloDinamico<Mensaje>& recibidos = usuarios[usuarioAutenticadoIndex].GETMensajesRecibidos();
+    int total = recibidos.GETTamanio();
     cout << "\n--- MENSAJES RECIBIDOS ---" << endl;
     bool hayNuevos = false;
     for (int i = 0; i < total; ++i) {
@@ -234,15 +235,15 @@ void SistemaUdeaBook::leerNuevosMensajes() {
             hayNuevos = true;
         }
     }
-    if (!hayNuevos) cout <<"no tienes mensajes nuevos. "endl;
+    if (!hayNuevos) cout <<"no tienes mensajes nuevos. "<<endl;
 }
 
 void SistemaUdeaBook::buscarMensajesPorFecha(Cadena fecha, Cadena emisor) {
     medidor.registrarIteracion();
     if (usuarioAutenticadoIndex == -1) return;
 
-    ArregloDinamico<Mensaje>& recibidos = usuarios[usuarioAutenticadoIndex].mensajesRecibidos;
-    int total = recibidos.GETTAMANIO();
+    ArregloDinamico<Mensaje>& recibidos = usuarios[usuarioAutenticadoIndex].GETMensajesRecibidos();
+    int total = recibidos.GETTamanio();
     cout << "\n--- BUSQUEDA DE MENSAJES ---" << endl;
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
@@ -271,7 +272,7 @@ void SistemaUdeaBook::ejecutarMenu() {
                 cout << "Correo: "; cin >> buffer1;
                 cout << "Contrasena: "; cin >> buffer2;
                 if (iniciarSesion(Cadena(buffer1), Cadena(buffer2))) {
-                    cout << "\n[OK] Sesion iniciada como " << usuarios[usuarioAutenticadoIndex].NombreUsuario.GETDatos() << endl;
+                    cout << "\n[OK] Sesion iniciada como " << usuarios[usuarioAutenticadoIndex].GETNombreUsuario().GETDatos() << endl;
                 } else {
                     cout << "\n[ERROR] Credenciales incorrectas." << endl;
                 }
@@ -289,7 +290,7 @@ void SistemaUdeaBook::ejecutarMenu() {
                 }
             }
         } else {
-            cout << " Usuario conectado: " << usuarios[usuarioAutenticadoIndex].NombreUsuario.GETDatos() << endl;
+            cout << " Usuario conectado: " << usuarios[usuarioAutenticadoIndex].GETNombreUsuario().GETDatos() << endl;
             cout << " 1. Enviar Mensaje" << endl;
             cout << " 2. Leer Nuevos Mensajes" << endl;
             cout << " 3. Enviar Solicitud de Amistad" << endl;

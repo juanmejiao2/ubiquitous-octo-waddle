@@ -38,7 +38,7 @@ public:
         delete[] elementos;
     }
     ArregloDinamico& operator=(const ArregloDinamico& copia){
-        if(this==&copia){
+        if(this== &copia){
             return *this;
         }
         delete[] elementos;
@@ -62,7 +62,7 @@ public:
         return elementos[indice];
     }
 
-    int GETTAMANIO() const{
+    int GETTamanio() const{
         return tamanio;
     }
 

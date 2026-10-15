@@ -6,11 +6,10 @@
 #include "mensaje.h"
 #include "solicitudamistad.h"
 #include "album.h"
-class sistemaudeabook;
 
 
 class Usuario{
-    friend class sistemaudeabook;
+
 private:
     Cadena NombreUsuario;
     Cadena FechaNacimiento;
@@ -38,10 +37,19 @@ public:
 
     ArregloDinamico<Album>& GETAlbumes();
     ArregloDinamico<Mensaje>& GETMensajesRecibidos();
+    ArregloDinamico<SolicitudAmistad>& GETSolicitudes();
     const ArregloDinamico<Album>& GETAlbumes() const;
     const ArregloDinamico<int>& GETIdsAmigos() const;
     const ArregloDinamico<SolicitudAmistad>& GETSolicitudes() const;
     const ArregloDinamico<Mensaje>& GETMensajesRecibidos() const;
+    Cadena GETFechaNacimiento() const;
+    Cadena GETCorreo() const;
+    Cadena GETFotoPerfil() const;
+    Cadena GETContrasena() const;
+    Cadena GETCiudad() const;
+    Cadena GETPais() const;
+    Cadena GETFechaInscripcion() const;
+
 };
 
 #endif // USUARIO_H
