@@ -1,7 +1,7 @@
 #ifndef FOTO_H
 #define FOTO_H
 
-#include "Cadena.h"
+#include "cadena.h"
 
 class Foto{
 private:

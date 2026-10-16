@@ -16,14 +16,13 @@ RedAmigos::RedAmigos()
 
 RedAmigos::RedAmigos(int totalUsuarios)
     : matrizConexiones(nullptr), totalUsuarios(totalUsuarios > 0 ? totalUsuarios : 0) {
-    if (this->totalUsuarios > 0) {
-        matrizConexiones = new bool[this->totalUsuarios * this->totalUsuarios]();
+
         if (this->totalUsuarios > 0) {
             int total = this->totalUsuarios * this->totalUsuarios;
             matrizConexiones = new bool[total]();
         }
     }
-}
+
 
 RedAmigos::RedAmigos(const RedAmigos& otra)
     : matrizConexiones(nullptr), totalUsuarios(otra.totalUsuarios) {
@@ -94,4 +93,19 @@ int RedAmigos::contarAmigosEnComun(int idUsuario1, int idUsuario2) const {
         }
     }
     return comunes;
+}
+
+void RedAmigos::redimensionar(int nuevoTotal) {
+    if (nuevoTotal <= totalUsuarios) return;
+    bool* nuevaMatriz = new bool[nuevoTotal * nuevoTotal]();
+    if (matrizConexiones != nullptr) {
+        for (int i = 0; i < totalUsuarios; ++i) {
+            for (int j = 0; j < totalUsuarios; ++j) {
+                nuevaMatriz[i * nuevoTotal + j] = matrizConexiones[i * totalUsuarios + j];
+            }
+        }
+        delete[] matrizConexiones;
+    }
+    matrizConexiones = nuevaMatriz;
+    totalUsuarios = nuevoTotal;
 }

@@ -46,7 +46,7 @@ ArregloDinamico<SolicitudAmistad>& Usuario::GETSolicitudes() {
 
 
 bool Usuario::validarContrasenia(Cadena pass) const{
-    return true;
+    return Contrasena == pass;
 }
 
 void Usuario::agregarAmigo(int idAmigo){

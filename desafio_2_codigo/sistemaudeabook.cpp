@@ -155,6 +155,7 @@ bool SistemaUdeaBook::registrarUsuario(const Usuario& nuevoUsuario){
         }
     }
     usuarios.agregar(nuevoUsuario);
+    matrizAmistades.redimensionar(usuarios.GETTamanio());
     return true;
 }
 
@@ -176,18 +177,46 @@ void SistemaUdeaBook::enviarSolicitudAmistad(Cadena receptor) {
     if (usuarioAutenticadoIndex == -1) return;
 
     Cadena emisor = usuarios[usuarioAutenticadoIndex].GETNombreUsuario();
-    SolicitudAmistad sol(emisor, receptor);
 
+    // 1. Validar si se envía a sí mismo
+    if (emisor == receptor) {
+        cout << "[ERROR] No puedes enviarte una solicitud a ti mismo." << endl;
+        return;
+    }
+
+    int idxReceptor = -1;
     int total = usuarios.GETTamanio();
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
         if (usuarios[i].GETNombreUsuario() == receptor) {
-            usuarios[i].recibirSolicitud(sol);
-            cout << "Solicitud enviada a " << receptor.GETDatos() << endl;
+            idxReceptor = i;
+            break;
+        }
+    }
+
+    if (idxReceptor == -1) {
+        cout << "[ERROR] Usuario receptor no encontrado." << endl;
+        return;
+    }
+
+    // 2. Validar si ya son amigos
+    if (matrizAmistades.sonAmigos(usuarioAutenticadoIndex, idxReceptor)) {
+        cout << "[ERROR] Ya eres amigo de este usuario." << endl;
+        return;
+    }
+
+    // 3. Validar si ya existe solicitud pendiente
+    ArregloDinamico<SolicitudAmistad>& recSols = usuarios[idxReceptor].GETSolicitudes();
+    for (int s = 0; s < recSols.GETTamanio(); ++s) {
+        if (recSols[s].GETEmisor() == emisor && recSols[s].GETEstado() == Cadena("Pendiente")) {
+            cout << "[ERROR] Ya enviaste una solicitud pendiente a este usuario." << endl;
             return;
         }
     }
-    cout << "Usuario receptor no encontrado." << endl;
+
+    SolicitudAmistad sol(emisor, receptor);
+    usuarios[idxReceptor].recibirSolicitud(sol);
+    cout << "Solicitud enviada a " << receptor.GETDatos() << endl;
 }
 
 void SistemaUdeaBook::aceptarSolicitudAmistad(Cadena emisor) {
