@@ -18,6 +18,7 @@ public:
     int getTotalUsuarios() const;
 
     void registrarAmistad(int idUsuario1, int idUsuario2);
+    void redimensionar(int nuevoTotal);
     bool sonAmigos(int idUsuario1, int idUsuario2) const;
     int contarAmigosEnComun(int idUsuario1, int idUsuario2) const;
 };

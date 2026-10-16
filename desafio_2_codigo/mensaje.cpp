@@ -37,5 +37,5 @@ Cadena Mensaje::GETcontenido() const{
 }
 
 bool Mensaje::operator<(const Mensaje& copia) const{
-    return true;
+    return FechaEnvio.GETLongitud() < copia.FechaEnvio.GETLongitud();
 }

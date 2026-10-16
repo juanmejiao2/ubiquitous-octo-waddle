@@ -26,3 +26,7 @@ HEADERS += \
     sistemaudeabook.h \
     solicitudamistad.h \
     usuario.h
+
+DISTFILES += \
+    CMakeLists.txt \
+    datos.txt
