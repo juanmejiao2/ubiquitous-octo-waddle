@@ -66,7 +66,7 @@ void SistemaUdeaBook::cargarDatos() {
         if (tipo == Cadena("[USUARIOS]")) {
             int cantidad = 0;
             archivo >> cantidad;
-            archivo.get(); // Consumir salto de línea
+            archivo.get();
             for (int i = 0; i < cantidad; ++i) {
                 medidor.registrarIteracion();
                 Cadena nom = leerCadenaDesdeArchivo(archivo, ';');
@@ -80,6 +80,20 @@ void SistemaUdeaBook::cargarDatos() {
 
                 Usuario u(nom, fnac, corr, foto, pass, ciud, pais, fins);
                 usuarios.agregar(u);
+            }
+            matrizAmistades = RedAmigos(usuarios.GETTamanio());
+        }
+        else if (tipo == Cadena("[MATRIZ]")) {
+            int totalU = 0;
+            archivo >> totalU;
+            for (int i = 0; i < totalU; ++i) {
+                for (int j = 0; j < totalU; ++j) {
+                    int val = 0;
+                    archivo >> val;
+                    if (val == 1) {
+                        matrizAmistades.registrarAmistad(i, j);
+                    }
+                }
             }
         }
     }
@@ -104,6 +118,15 @@ void SistemaUdeaBook::guardarDatos() {
                 << usuarios[i].GETCiudad().GETDatos() << ";"
                 << usuarios[i].GETPais().GETDatos() << ";"
                 << usuarios[i].GETFechaInscripcion().GETDatos() << "\n";
+    }
+    int totalU = matrizAmistades.getTotalUsuarios();
+    archivo << "[MATRIZ]\n" << totalU << "\n";
+    for (int i = 0; i < totalU; ++i) {
+        for (int j = 0; j < totalU; ++j) {
+            bool amigo = matrizAmistades.sonAmigos(i, j);
+            archivo << (amigo ? 1 : 0) << (j == totalU - 1 ? "" : " ");
+        }
+        archivo << "\n";
     }
     archivo.close();
 }
@@ -177,6 +200,17 @@ void SistemaUdeaBook::aceptarSolicitudAmistad(Cadena emisor) {
         medidor.registrarIteracion();
         if (solRecibidas[i].GETEmisor() == emisor && solRecibidas[i].GETEstado() == Cadena("Pendiente")) {
             solRecibidas[i].cambiarEstado(Cadena("Aceptada"));
+            int indiceEmisor = -1;
+            for (int u = 0; u < usuarios.GETTamanio(); ++u) {
+                if (usuarios[u].GETNombreUsuario() == emisor) {
+                    indiceEmisor = u;
+                    break;
+                }
+            }
+            if (indiceEmisor != -1) {
+                matrizAmistades.registrarAmistad(usuarioAutenticadoIndex, indiceEmisor);
+            }
+
             cout << "Solicitud de " << emisor.GETDatos() << " aceptada exitosamente." << endl;
             return;
         }
@@ -195,9 +229,13 @@ void SistemaUdeaBook::visitarPerfilAmigo(Cadena nombreAmigo) {
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
         if (usuarios[i].GETNombreUsuario() == nombreAmigo) {
-            cout << "\n=== PERFIL DE " << nombreAmigo.GETDatos() << " ===" << endl;
-            cout << "Ciudad: " << usuarios[i].GETCiudad().GETDatos() << endl;
-            cout << "Pais: " << usuarios[i].GETPais().GETDatos() << endl;
+            if (i == usuarioAutenticadoIndex || matrizAmistades.sonAmigos(usuarioAutenticadoIndex, i)) {
+                cout << "\n=== PERFIL DE " << nombreAmigo.GETDatos() << " ===" << endl;
+                cout << "Ciudad: " << usuarios[i].GETCiudad().GETDatos() << endl;
+                cout << "Pais: " << usuarios[i].GETPais().GETDatos() << endl;
+            } else {
+                cout << "\n[ACCESO DENEGADO] No puedes ver el perfil de " << nombreAmigo.GETDatos() << " porque no son amigos." << endl;
+            }
             return;
         }
     }
