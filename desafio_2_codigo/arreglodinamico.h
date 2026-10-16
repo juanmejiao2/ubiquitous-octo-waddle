@@ -62,7 +62,7 @@ public:
         return elementos[indice];
     }
 
-    int GETTAMANIO() const{
+    int GETTamanio() const{
         return tamanio;
     }
 
