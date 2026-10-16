@@ -18,6 +18,10 @@ RedAmigos::RedAmigos(int totalUsuarios)
     : matrizConexiones(nullptr), totalUsuarios(totalUsuarios > 0 ? totalUsuarios : 0) {
     if (this->totalUsuarios > 0) {
         matrizConexiones = new bool[this->totalUsuarios * this->totalUsuarios]();
+        if (this->totalUsuarios > 0) {
+            int total = this->totalUsuarios * this->totalUsuarios;
+            matrizConexiones = new bool[total]();
+        }
     }
 }
 

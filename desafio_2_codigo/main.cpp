@@ -2,8 +2,8 @@
 
 int main() {
     SistemaUdeaBook sistema;
-    sistema.cargarDatos();   // 1. Carga los datos del .txt
-    sistema.ejecutarMenu();  // 2. Ejecuta todo el flujo interactivo
-    sistema.guardarDatos();  // 3. Guarda los cambios de vuelta en el .txt
+    sistema.cargarDatos();
+    sistema.ejecutarMenu();
+    sistema.guardarDatos();
     return 0;
 }
