@@ -18,6 +18,7 @@ private:
     bool yaAlternoFotos;
 
     Cadena leerCadenaDesdeArchivo(std::ifstream& archivo, char delimitador);
+    Cadena fechaActual() const;
 
 public:
     SistemaUdeaBook();

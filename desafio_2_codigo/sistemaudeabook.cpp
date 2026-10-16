@@ -1,5 +1,6 @@
 #include "sistemaudeabook.h"
 #include <iostream>
+#include <chrono>
 
 using namespace std;
 
@@ -47,6 +48,26 @@ Cadena SistemaUdeaBook::leerCadenaDesdeArchivo(ifstream& archivo, char delimitad
     return Cadena(buffer);
 }
 
+Cadena SistemaUdeaBook::fechaActual() const {
+    using namespace std::chrono;
+    long long seg = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+    seg -= 5 * 3600;                       // Colombia = UTC-5
+    long long z = seg / 86400 + 719468;    // dias desde 1970 -> fecha del calendario
+    long long era = (z >= 0 ? z : z - 146096) / 146097;
+    long long doe = z - era * 146097;
+    long long yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365;
+    long long doy = doe - (365*yoe + yoe/4 - yoe/100);
+    long long mp  = (5*doy + 2) / 153;
+    int dia  = doy - (153*mp + 2)/5 + 1;
+    int mes  = mp < 10 ? mp + 3 : mp - 9;
+    int anio = yoe + era*400 + (mes <= 2 ? 1 : 0);
+
+    char t[11] = { char('0'+anio/1000), char('0'+anio/100%10), char('0'+anio/10%10), char('0'+anio%10), '-',
+                  char('0'+mes/10), char('0'+mes%10), '-',
+                  char('0'+dia/10), char('0'+dia%10), '\0' };
+    return Cadena(t);
+}
+
 
 void SistemaUdeaBook::cargarDatos() {
     medidor.registrarIteracion();
@@ -66,7 +87,7 @@ void SistemaUdeaBook::cargarDatos() {
         if (tipo == Cadena("[USUARIOS]")) {
             int cantidad = 0;
             archivo >> cantidad;
-            archivo.get();
+            archivo.ignore(10000,'\n');
             for (int i = 0; i < cantidad; ++i) {
                 medidor.registrarIteracion();
                 Cadena nom = leerCadenaDesdeArchivo(archivo, ';');
@@ -214,6 +235,17 @@ void SistemaUdeaBook::enviarSolicitudAmistad(Cadena receptor) {
         }
     }
 
+
+    // 4. Validar si el receptor ya me envio una solicitud a mi
+    ArregloDinamico<SolicitudAmistad>& misSols = usuarios[usuarioAutenticadoIndex].GETSolicitudes();
+    for (int s = 0; s < misSols.GETTamanio(); ++s) {
+        medidor.registrarIteracion();
+        if (misSols[s].GETEmisor() == receptor && misSols[s].GETEstado() == Cadena("Pendiente")) {
+            cout << "[ERROR] Ese usuario ya te envio una solicitud. Aceptala en la opcion 4." << endl;
+            return;
+        }
+    }
+
     SolicitudAmistad sol(emisor, receptor);
     usuarios[idxReceptor].recibirSolicitud(sol);
     cout << "Solicitud enviada a " << receptor.GETDatos() << endl;
@@ -275,13 +307,25 @@ void SistemaUdeaBook::enviarMensaje(Cadena receptor, Cadena contenido) {
     medidor.registrarIteracion();
     if (usuarioAutenticadoIndex == -1) return;
 
-    Cadena emisor = usuarios[usuarioAutenticadoIndex].GETNombreUsuario();
-    Mensaje msj(emisor, receptor, contenido, Cadena("Sin fecha"));
+    if (contenido.GETLongitud() == 0) {
+        cout << "[ERROR] No puedes enviar un mensaje vacio." << endl;
+        return;
+    }
+    if (contenido.GETLongitud() > 512) {
+        cout << "[ERROR] El mensaje no puede superar 512 caracteres." << endl;
+        return;
+    }
 
     int total = usuarios.GETTamanio();
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
         if (usuarios[i].GETNombreUsuario() == receptor) {
+            if (!matrizAmistades.sonAmigos(usuarioAutenticadoIndex, i)) {
+                cout << "[ERROR] Solo puedes enviar mensajes a tus amigos." << endl;
+                return;
+            }
+            Cadena emisor = usuarios[usuarioAutenticadoIndex].GETNombreUsuario();
+            Mensaje msj(emisor, receptor, contenido, fechaActual());
             usuarios[i].recibirMensaje(msj);
             cout << "Mensaje enviado a " << receptor.GETDatos() << endl;
             return;
@@ -340,6 +384,7 @@ void SistemaUdeaBook::ejecutarMenu() {
             cout << "Seleccione una opcion: ";
 
             if (!(cin >> opcion)) {
+                if(cin.eof()) break;
                 cin.clear();
                 cin.ignore(10000, '\n');
                 cout << "\n[ERROR] Por favor ingresa un numero valido.\n";
@@ -348,17 +393,17 @@ void SistemaUdeaBook::ejecutarMenu() {
             cin.ignore(10000, '\n');
 
             if (opcion == 1) {
-                cout << "Correo: "; cin >> buffer1;
-                cout << "Contrasena: "; cin >> buffer2;
+                cout << "Correo: "; cin.width(256); cin >> buffer1;
+                cout << "Contrasena: "; cin.width(256); cin >> buffer2;
                 if (iniciarSesion(Cadena(buffer1), Cadena(buffer2))) {
                     cout << "\n[OK] Sesion iniciada como " << usuarios[usuarioAutenticadoIndex].GETNombreUsuario().GETDatos() << endl;
                 } else {
                     cout << "\n[ERROR] Credenciales incorrectas." << endl;
                 }
             } else if (opcion == 2) {
-                cout << "Nombre de Usuario: "; cin >> buffer1;
-                cout << "Correo: "; cin >> buffer2;
-                cout << "Contrasena: "; cin >> buffer3;
+                cout << "Nombre de Usuario: "; cin.width(256);cin >> buffer1;
+                cout << "Correo: "; cin.width(256); cin >> buffer2;
+                cout << "Contrasena: "; cin.width(256); cin >> buffer3;
                 Usuario nuevo(Cadena(buffer1), Cadena("01/01/2000"), Cadena(buffer2),
                               Cadena("default.jpg"), Cadena(buffer3), Cadena("Medellin"),
                               Cadena("Colombia"), Cadena("14/10/2026"));
@@ -383,6 +428,7 @@ void SistemaUdeaBook::ejecutarMenu() {
 
             int subOpcion;
             if (!(cin >> subOpcion)) {
+                if(cin.eof()) break;
                 cin.clear();
                 cin.ignore(10000, '\n');
                 continue;
@@ -391,20 +437,27 @@ void SistemaUdeaBook::ejecutarMenu() {
 
 
             if (subOpcion == 1) {
+                char bufferMsj[514];
                 cout << "Destinatario: ";
-                cin >> buffer1;
-                cout << "Mensaje: ";
-                cin.ignore();
-                cin.getline(buffer2, 256);
-                enviarMensaje(Cadena(buffer1), Cadena(buffer2));
-                guardarDatos();
+                cin.width(256); cin >> buffer1;
+                cin.ignore(10000, '\n');
+                cout << "Mensaje (max 512 caracteres): ";
+                cin.getline(bufferMsj, 514);
+                if (cin.fail()) {
+                    cin.clear();
+                    cin.ignore(10000, '\n');
+                    cout << "[ERROR] El mensaje no puede superar 512 caracteres." << endl;
+                } else {
+                    enviarMensaje(Cadena(buffer1), Cadena(bufferMsj));
+                    guardarDatos();
+                }
 
             } else if (subOpcion == 2) {
                 leerNuevosMensajes();
                 guardarDatos();
 
             } else if (subOpcion == 3) {
-                cout << "Usuario a solicitar: "; cin >> buffer1;
+                cout << "Usuario a solicitar: "; cin.width(256); cin >> buffer1;
                 enviarSolicitudAmistad(Cadena(buffer1));
                 guardarDatos();
 
@@ -425,14 +478,14 @@ void SistemaUdeaBook::ejecutarMenu() {
                     cout << "No tienes solicitudes pendientes." << endl;
                 } else {
                     cout << "Ingrese el nombre del usuario que le envio la solicitud: ";
-                    cin >> buffer1;
+                    cin.width(256); cin >> buffer1;
                     cin.ignore(10000, '\n');
                     aceptarSolicitudAmistad(Cadena(buffer1));
                     guardarDatos();
                 }
 
             } else if (subOpcion == 5) {
-                cout << "Nombre del amigo: "; cin >> buffer1;
+                cout << "Nombre del amigo: "; cin.width(256); cin >> buffer1;
                 visitarPerfilAmigo(Cadena(buffer1));
 
             } else if (subOpcion == 6) {
