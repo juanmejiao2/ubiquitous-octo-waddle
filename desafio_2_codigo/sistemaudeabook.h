@@ -7,7 +7,7 @@
 #include "arreglodinamico.h"
 #include "cadena.h"
 #include<fstream>
-
+#include <random>
 
 class SistemaUdeaBook {
 private:
@@ -16,9 +16,13 @@ private:
     MedidorRecurso medidor;
     int usuarioAutenticadoIndex;
     bool yaAlternoFotos;
-
+    ArregloDinamico<int> fotosMostradas;
+    std::mt19937 generador;
     Cadena leerCadenaDesdeArchivo(std::ifstream& archivo, char delimitador);
-
+    Cadena fechaActual() const;
+    bool fechaValida(const Cadena& fecha) const;
+    int leerEntero();
+    void mostrarFotosAmigos(bool esActualizacion);
 public:
     SistemaUdeaBook();
     SistemaUdeaBook(const SistemaUdeaBook& otro);
@@ -34,18 +38,17 @@ public:
     void cambiarFotosPerfil();
     void enviarSolicitudAmistad(Cadena receptor);
     void aceptarSolicitudAmistad(Cadena emisor);
-    void verSugerenciasAmistad(int idUsuario);
+    void verSugerenciasAmistad(int k);
     void visitarPerfilAmigo(Cadena nombreAmigo);
     void enviarMensaje(Cadena receptor, Cadena contenido);
     void leerNuevosMensajes();
-    void buscarMensajesPorFecha(Cadena fecha, Cadena emisor);
+    void buscarMensajesPorFecha(Cadena inicio, Cadena fin);
 
     ArregloDinamico<Usuario>& getUsuarios();
     RedAmigos& getMatrizAmistades();
     MedidorRecurso& getMedidor();
     int getUsuarioAutenticadoIndex() const;
     bool getYaAlternoFotos() const;
-
     void setUsuarioAutenticadoIndex(int index);
     void setYaAlternoFotos(bool alterno);
 };

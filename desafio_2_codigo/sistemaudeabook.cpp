@@ -1,17 +1,22 @@
 #include "sistemaudeabook.h"
 #include <iostream>
+#include <chrono>
 
 using namespace std;
 
 SistemaUdeaBook::SistemaUdeaBook()
     : usuarios(), matrizAmistades(), medidor(),
-    usuarioAutenticadoIndex(-1), yaAlternoFotos(false) {
-}
+    usuarioAutenticadoIndex(-1), yaAlternoFotos(false),
+    fotosMostradas(), generador(std::random_device{}()){
+    }
+
+
 
 SistemaUdeaBook::SistemaUdeaBook(const SistemaUdeaBook& otro)
     : usuarios(otro.usuarios), matrizAmistades(otro.matrizAmistades),
     medidor(otro.medidor), usuarioAutenticadoIndex(otro.usuarioAutenticadoIndex),
-    yaAlternoFotos(otro.yaAlternoFotos) {
+    yaAlternoFotos(otro.yaAlternoFotos), fotosMostradas(otro.fotosMostradas),
+    generador(otro.generador){
 }
 
 SistemaUdeaBook& SistemaUdeaBook::operator=(const SistemaUdeaBook& otro) {
@@ -21,6 +26,8 @@ SistemaUdeaBook& SistemaUdeaBook::operator=(const SistemaUdeaBook& otro) {
         medidor = otro.medidor;
         usuarioAutenticadoIndex = otro.usuarioAutenticadoIndex;
         yaAlternoFotos = otro.yaAlternoFotos;
+        fotosMostradas= otro.fotosMostradas;
+        generador= otro.generador;
     }
     return *this;
 }
@@ -47,6 +54,53 @@ Cadena SistemaUdeaBook::leerCadenaDesdeArchivo(ifstream& archivo, char delimitad
     return Cadena(buffer);
 }
 
+Cadena SistemaUdeaBook::fechaActual() const {
+    using namespace std::chrono;
+    long long seg = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+    seg -= 5 * 3600;                       // Colombia = UTC-5
+    long long z = seg / 86400 + 719468;    // dias desde 1970 -> fecha del calendario
+    long long era = (z >= 0 ? z : z - 146096) / 146097;
+    long long doe = z - era * 146097;
+    long long yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365;
+    long long doy = doe - (365*yoe + yoe/4 - yoe/100);
+    long long mp  = (5*doy + 2) / 153;
+    int dia  = doy - (153*mp + 2)/5 + 1;
+    int mes  = mp < 10 ? mp + 3 : mp - 9;
+    int anio = yoe + era*400 + (mes <= 2 ? 1 : 0);
+
+    char t[11] = { char('0'+anio/1000), char('0'+anio/100%10), char('0'+anio/10%10), char('0'+anio%10), '-',
+                  char('0'+mes/10), char('0'+mes%10), '-',
+                  char('0'+dia/10), char('0'+dia%10), '\0' };
+    return Cadena(t);
+}
+
+
+bool SistemaUdeaBook::fechaValida(const Cadena& fecha) const {
+    if (fecha.GETLongitud() != 10) return false;
+    const char* d = fecha.GETDatos();
+    for (int i = 0; i < 10; ++i) {
+        if (i == 4 || i == 7) {
+            if (d[i] != '-') return false;
+        } else if (d[i] < '0' || d[i] > '9') {
+            return false;
+        }
+    }
+    int mes = (d[5]-'0')*10 + (d[6]-'0');
+    int dia = (d[8]-'0')*10 + (d[9]-'0');
+    return mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31;
+}
+
+int SistemaUdeaBook::leerEntero() {
+    int valor;
+    if (!(cin >> valor)) {
+        if (cin.eof()) return -1;
+        cin.clear();
+        cin.ignore(10000, '\n');
+        return -1;
+    }
+    cin.ignore(10000, '\n');
+    return valor;
+}
 
 void SistemaUdeaBook::cargarDatos() {
     medidor.registrarIteracion();
@@ -66,7 +120,7 @@ void SistemaUdeaBook::cargarDatos() {
         if (tipo == Cadena("[USUARIOS]")) {
             int cantidad = 0;
             archivo >> cantidad;
-            archivo.get();
+            archivo.ignore(10000,'\n');
             for (int i = 0; i < cantidad; ++i) {
                 medidor.registrarIteracion();
                 Cadena nom = leerCadenaDesdeArchivo(archivo, ';');
@@ -86,10 +140,20 @@ void SistemaUdeaBook::cargarDatos() {
         else if (tipo == Cadena("[MATRIZ]")) {
             int totalU = 0;
             archivo >> totalU;
+
+            if (totalU <= 0 || totalU > 5000) {
+                return;
+            }
+
+            matrizAmistades = RedAmigos(totalU);
             for (int i = 0; i < totalU; ++i) {
                 for (int j = 0; j < totalU; ++j) {
                     int val = 0;
-                    archivo >> val;
+
+                    if (!(archivo >> val)) {
+                        break;
+                    }
+
                     if (val == 1) {
                         matrizAmistades.registrarAmistad(i, j);
                     }
@@ -99,7 +163,6 @@ void SistemaUdeaBook::cargarDatos() {
     }
     archivo.close();
 }
-
 
 void SistemaUdeaBook::guardarDatos() {
     medidor.registrarIteracion();
@@ -162,14 +225,80 @@ bool SistemaUdeaBook::registrarUsuario(const Usuario& nuevoUsuario){
 void SistemaUdeaBook::mostrarMejoresAmigos() {
     medidor.registrarIteracion();
     if (usuarioAutenticadoIndex == -1) return;
-    cout << "\n--- MEJORES AMIGOS ---" << endl;
+        yaAlternoFotos=false;
+        cout << "\n--- MEJORES AMIGOS ---" << endl;
+        mostrarFotosAmigos(false);
+}
+
+void SistemaUdeaBook::mostrarFotosAmigos(bool esActualizacion) {
+    int yo = usuarioAutenticadoIndex;
+    int total = usuarios.GETTamanio();
+    ArregloDinamico<int> candidatos;
+    ArregloDinamico<int> pesos;
+    int pesoTotal = 0;
+    for (int i = 0; i < total; ++i) {
+        medidor.registrarIteracion();
+        if (!matrizAmistades.sonAmigos(yo, i)) continue;
+        if (esActualizacion) {
+            bool yaMostrado = false;
+            for (int m = 0; m < fotosMostradas.GETTamanio(); ++m) {
+                medidor.registrarIteracion();
+                if (fotosMostradas[m] == i) { yaMostrado = true; break; }
+            }
+            if (yaMostrado) continue;
+        }
+        int comunes = matrizAmistades.contarAmigosEnComun(yo, i);
+        medidor.registrarIteracion(total);
+        int peso = 10;
+        if (comunes > 20) peso = 35;
+        else if (comunes > 10) peso = 25;
+        candidatos.agregar(i);
+        pesos.agregar(peso);
+        pesoTotal += peso;
+    }
+    if (candidatos.GETTamanio() == 0) {
+        if (esActualizacion) cout << "No hay mas amigos con fotos distintas para mostrar." << endl;
+        else cout << "Aun no tienes amigos para mostrar." << endl;
+        return;
+    }
+    int aMostrar = candidatos.GETTamanio() < 3 ? candidatos.GETTamanio() : 3;
+    ArregloDinamico<int> elegidos;
+    for (int k = 0; k < aMostrar; ++k) {
+        std::uniform_int_distribution<int> distribucion(1, pesoTotal);
+        int sorteo = distribucion(generador);
+        int acumulado = 0;
+        for (int c = 0; c < candidatos.GETTamanio(); ++c) {
+            medidor.registrarIteracion();
+            acumulado += pesos[c];
+            if (acumulado >= sorteo) {
+                elegidos.agregar(candidatos[c]);
+                pesoTotal -= pesos[c];
+                pesos[c] = 0;
+                break;
+            }
+        }
+    }
+    for (int e = 0; e < elegidos.GETTamanio(); ++e) {
+        int idx = elegidos[e];
+        cout << " " << (e + 1) << ". " << usuarios[idx].GETNombreUsuario().GETDatos()
+             << " -> " << usuarios[idx].GETFotoPerfil().GETDatos() << endl;
+    }
+    if (!esActualizacion) {
+        fotosMostradas = elegidos;
+        cout << "(Puedes actualizar estas fotos una sola vez con la opcion 8)" << endl;
+    }
 }
 
 void SistemaUdeaBook::cambiarFotosPerfil() {
     medidor.registrarIteracion();
     if (usuarioAutenticadoIndex == -1) return;
-    yaAlternoFotos = !yaAlternoFotos;
-    cout << "Estado de alternancia de foto cambiado a: " << (yaAlternoFotos ? "Alterno" : "Principal") << endl;
+    if (yaAlternoFotos) {
+        cout << "[ERROR] Ya actualizaste las fotos una vez en esta sesion." << endl;
+        return;
+    }
+    yaAlternoFotos = true;
+    cout << "\n--- NUEVAS FOTOS DE MEJORES AMIGOS ---" << endl;
+    mostrarFotosAmigos(true);
 }
 
 void SistemaUdeaBook::enviarSolicitudAmistad(Cadena receptor) {
@@ -214,6 +343,16 @@ void SistemaUdeaBook::enviarSolicitudAmistad(Cadena receptor) {
         }
     }
 
+    // 4. Validar si el receptor ya me envio una solicitud a mi
+    ArregloDinamico<SolicitudAmistad>& misSols = usuarios[usuarioAutenticadoIndex].GETSolicitudes();
+    for (int s = 0; s < misSols.GETTamanio(); ++s) {
+        medidor.registrarIteracion();
+        if (misSols[s].GETEmisor() == receptor && misSols[s].GETEstado() == Cadena("Pendiente")) {
+            cout << "[ERROR] Ese usuario ya te envio una solicitud. Aceptala en la opcion 4." << endl;
+            return;
+        }
+    }
+
     SolicitudAmistad sol(emisor, receptor);
     usuarios[idxReceptor].recibirSolicitud(sol);
     cout << "Solicitud enviada a " << receptor.GETDatos() << endl;
@@ -247,41 +386,160 @@ void SistemaUdeaBook::aceptarSolicitudAmistad(Cadena emisor) {
     cout << "No se encontro solicitud pendiente de ese usuario." << endl;
 }
 
-void SistemaUdeaBook::verSugerenciasAmistad(int idUsuario) {
+void SistemaUdeaBook::verSugerenciasAmistad(int k) {
     medidor.registrarIteracion();
-    cout << "\n--- SUGERENCIAS DE AMISTAD PARA ID " << idUsuario << " ---" << endl;
+    if (usuarioAutenticadoIndex == -1) return;
+    if (k < 1 || k > 20) {
+        cout << "[ERROR] K debe estar entre 1 y 20." << endl;
+        return;
+    }
+    int yo = usuarioAutenticadoIndex;
+    int total = usuarios.GETTamanio();
+    ArregloDinamico<int> candidatos;
+    ArregloDinamico<int> comunes;
+    for (int c = 0; c < total; ++c) {
+        medidor.registrarIteracion();
+        if (c == yo || matrizAmistades.sonAmigos(yo, c)) continue;
+        int enComun = matrizAmistades.contarAmigosEnComun(yo, c);
+        medidor.registrarIteracion(total);
+        if (enComun > 0) {
+            candidatos.agregar(c);
+            comunes.agregar(enComun);
+        }
+    }
+    if (candidatos.GETTamanio() == 0) {
+        cout << "No hay sugerencias de amistad por ahora." << endl;
+        return;
+    }
+    int mostrar = candidatos.GETTamanio() < k ? candidatos.GETTamanio() : k;
+    for (int p = 0; p < mostrar; ++p) {
+        int mejor = p;
+        for (int q = p + 1; q < candidatos.GETTamanio(); ++q) {
+            medidor.registrarIteracion();
+            if (comunes[q] > comunes[mejor]) mejor = q;
+        }
+        int tmp = candidatos[p]; candidatos[p] = candidatos[mejor]; candidatos[mejor] = tmp;
+        tmp = comunes[p]; comunes[p] = comunes[mejor]; comunes[mejor] = tmp;
+    }
+    cout << "\n--- " << mostrar << " SUGERENCIAS DE AMISTAD ---" << endl;
+    for (int p = 0; p < mostrar; ++p) {
+        cout << " " << (p + 1) << ". " << usuarios[candidatos[p]].GETNombreUsuario().GETDatos()
+        << " (" << comunes[p] << " amigos en comun)" << endl;
+    }
+    cout << "Numero de la sugerencia para enviar solicitud (0 para ninguna): ";
+    int sel = leerEntero();
+    if (sel >= 1 && sel <= mostrar) {
+        enviarSolicitudAmistad(usuarios[candidatos[sel - 1]].GETNombreUsuario());
+    } else if (sel != 0) {
+        cout << "[ERROR] Opcion no valida." << endl;
+    }
 }
 
 void SistemaUdeaBook::visitarPerfilAmigo(Cadena nombreAmigo) {
     medidor.registrarIteracion();
+    if (usuarioAutenticadoIndex == -1) return;
+    int idx = -1;
     int total = usuarios.GETTamanio();
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
-        if (usuarios[i].GETNombreUsuario() == nombreAmigo) {
-            if (i == usuarioAutenticadoIndex || matrizAmistades.sonAmigos(usuarioAutenticadoIndex, i)) {
-                cout << "\n=== PERFIL DE " << nombreAmigo.GETDatos() << " ===" << endl;
-                cout << "Ciudad: " << usuarios[i].GETCiudad().GETDatos() << endl;
-                cout << "Pais: " << usuarios[i].GETPais().GETDatos() << endl;
-            } else {
-                cout << "\n[ACCESO DENEGADO] No puedes ver el perfil de " << nombreAmigo.GETDatos() << " porque no son amigos." << endl;
-            }
-            return;
+        if (usuarios[i].GETNombreUsuario() == nombreAmigo) { idx = i; break; }
+    }
+    if (idx == -1) {
+        cout << "El usuario no existe." << endl;
+        return;
+    }
+    if (idx == usuarioAutenticadoIndex) {
+        cout << "[ERROR] Ese es tu propio perfil." << endl;
+        return;
+    }
+    if (!matrizAmistades.sonAmigos(usuarioAutenticadoIndex, idx)) {
+        cout << "\n[ACCESO DENEGADO] No puedes ver el perfil de " << nombreAmigo.GETDatos() << " porque no son amigos." << endl;
+        return;
+    }
+    cout << "\n=== PERFIL DE " << nombreAmigo.GETDatos() << " ===" << endl;
+    cout << "Ciudad: " << usuarios[idx].GETCiudad().GETDatos() << endl;
+    cout << "Pais: " << usuarios[idx].GETPais().GETDatos() << endl;
+
+    ArregloDinamico<Album>& albumes = usuarios[idx].GETAlbumes();
+    ArregloDinamico<int> visibles;
+    for (int a = 0; a < albumes.GETTamanio(); ++a) {
+        medidor.registrarIteracion();
+        Cadena priv = albumes[a].GETprivacidad();
+        if (priv == Cadena("Publico") || priv == Cadena("Amigos")) {
+            visibles.agregar(a);
+            cout << " " << visibles.GETTamanio() << ". " << albumes[a].GETNombre().GETDatos()
+                 << " (" << priv.GETDatos() << ", " << albumes[a].GETFotos().GETTamanio() << " fotos)" << endl;
         }
     }
-    cout << "El usuario no existe." << endl;
+    if (visibles.GETTamanio() == 0) {
+        cout << "Este amigo no tiene albumes visibles." << endl;
+        return;
+    }
+    cout << "Seleccione un album (0 para volver): ";
+    int sel = leerEntero();
+    if (sel < 1 || sel > visibles.GETTamanio()) return;
+    Album& album = albumes[visibles[sel - 1]];
+    ArregloDinamico<Foto>& fotos = album.GETFotos();
+    int n = fotos.GETTamanio();
+    if (n == 0) {
+        cout << "El album no tiene fotos." << endl;
+        return;
+    }
+    ArregloDinamico<int> leDiLike(n);
+    for (int f = 0; f < n; ++f) leDiLike.agregar(0);
+    int actual = 0;
+    while (true) {
+        medidor.registrarIteracion();
+        cout << "\n[" << album.GETNombre().GETDatos() << "] Foto " << (actual + 1) << "/" << n << endl;
+        cout << " " << fotos[actual].GETRuta().GETDatos() << endl;
+        cout << " Likes: " << fotos[actual].GETMeGusta() << (leDiLike[actual] ? "  (te gusta)" : "") << endl;
+        cout << " 1. Siguiente  2. Anterior  3. Dar/Quitar like  0. Salir del album" << endl;
+        cout << "Opcion: ";
+        int op = leerEntero();
+        if (op == 0 || cin.eof()) break;
+        if (op == 1) {
+            actual = (actual + 1) % n;
+        } else if (op == 2) {
+            actual = (actual - 1 + n) % n;
+        } else if (op == 3) {
+            if (leDiLike[actual]) {
+                fotos[actual].decrementarMeGusta();
+                leDiLike[actual] = 0;
+                cout << "Like quitado." << endl;
+            } else {
+                fotos[actual].incrementarMeGusta();
+                leDiLike[actual] = 1;
+                cout << "Like agregado." << endl;
+            }
+        } else {
+            cout << "[ERROR] Opcion no valida." << endl;
+        }
+    }
 }
 
 void SistemaUdeaBook::enviarMensaje(Cadena receptor, Cadena contenido) {
     medidor.registrarIteracion();
     if (usuarioAutenticadoIndex == -1) return;
 
-    Cadena emisor = usuarios[usuarioAutenticadoIndex].GETNombreUsuario();
-    Mensaje msj(emisor, receptor, contenido, Cadena("Sin fecha"));
+    if (contenido.GETLongitud() == 0) {
+        cout << "[ERROR] No puedes enviar un mensaje vacio." << endl;
+        return;
+    }
+    if (contenido.GETLongitud() > 512) {
+        cout << "[ERROR] El mensaje no puede superar 512 caracteres." << endl;
+        return;
+    }
 
     int total = usuarios.GETTamanio();
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
         if (usuarios[i].GETNombreUsuario() == receptor) {
+            if (!matrizAmistades.sonAmigos(usuarioAutenticadoIndex, i)) {
+                cout << "[ERROR] Solo puedes enviar mensajes a tus amigos." << endl;
+                return;
+            }
+            Cadena emisor = usuarios[usuarioAutenticadoIndex].GETNombreUsuario();
+            Mensaje msj(emisor, receptor, contenido, fechaActual());
             usuarios[i].recibirMensaje(msj);
             cout << "Mensaje enviado a " << receptor.GETDatos() << endl;
             return;
@@ -310,19 +568,32 @@ void SistemaUdeaBook::leerNuevosMensajes() {
     if (!hayNuevos) cout <<"no tienes mensajes nuevos. "<<endl;
 }
 
-void SistemaUdeaBook::buscarMensajesPorFecha(Cadena fecha, Cadena emisor) {
+void SistemaUdeaBook::buscarMensajesPorFecha(Cadena inicio, Cadena fin) {
     medidor.registrarIteracion();
     if (usuarioAutenticadoIndex == -1) return;
-
+    if (!fechaValida(inicio) || !fechaValida(fin)) {
+        cout << "[ERROR] Las fechas deben tener el formato aaaa-mm-dd (ej: 2026-08-15)." << endl;
+        return;
+    }
+    if (fin < inicio) {
+        cout << "[ERROR] La fecha de inicio no puede ser posterior a la fecha de fin." << endl;
+        return;
+    }
     ArregloDinamico<Mensaje>& recibidos = usuarios[usuarioAutenticadoIndex].GETMensajesRecibidos();
     int total = recibidos.GETTamanio();
-    cout << "\n--- BUSQUEDA DE MENSAJES ---" << endl;
+    int encontrados = 0;
+    cout << "\n--- MENSAJES DEL " << inicio.GETDatos() << " AL " << fin.GETDatos() << " ---" << endl;
     for (int i = 0; i < total; ++i) {
         medidor.registrarIteracion();
-        if (recibidos[i].GETfecha() == fecha && recibidos[i].GETEmisor() == emisor) {
-            cout << "Encontrado: " << recibidos[i].GETcontenido().GETDatos() << endl;
+        Cadena fecha = recibidos[i].GETfecha();
+        if (!(fecha < inicio) && !(fin < fecha)) {
+            cout << "[" << fecha.GETDatos() << "] De: " << recibidos[i].GETEmisor().GETDatos()
+            << " | " << recibidos[i].GETcontenido().GETDatos() << endl;
+            encontrados++;
         }
     }
+    if (encontrados == 0) cout << "No hay mensajes en ese rango." << endl;
+    else cout << "Total: " << encontrados << " mensajes." << endl;
 }
 
 void SistemaUdeaBook::ejecutarMenu() {
@@ -340,6 +611,7 @@ void SistemaUdeaBook::ejecutarMenu() {
             cout << "Seleccione una opcion: ";
 
             if (!(cin >> opcion)) {
+                if (cin.eof()) break;
                 cin.clear();
                 cin.ignore(10000, '\n');
                 cout << "\n[ERROR] Por favor ingresa un numero valido.\n";
@@ -348,20 +620,21 @@ void SistemaUdeaBook::ejecutarMenu() {
             cin.ignore(10000, '\n');
 
             if (opcion == 1) {
-                cout << "Correo: "; cin >> buffer1;
-                cout << "Contrasena: "; cin >> buffer2;
+                cout << "Correo: "; cin.width(256); cin >> buffer1;
+                cout << "Contrasena: "; cin.width(256); cin >> buffer2;
                 if (iniciarSesion(Cadena(buffer1), Cadena(buffer2))) {
                     cout << "\n[OK] Sesion iniciada como " << usuarios[usuarioAutenticadoIndex].GETNombreUsuario().GETDatos() << endl;
+                    mostrarMejoresAmigos();
                 } else {
                     cout << "\n[ERROR] Credenciales incorrectas." << endl;
                 }
             } else if (opcion == 2) {
-                cout << "Nombre de Usuario: "; cin >> buffer1;
-                cout << "Correo: "; cin >> buffer2;
-                cout << "Contrasena: "; cin >> buffer3;
-                Usuario nuevo(Cadena(buffer1), Cadena("01/01/2000"), Cadena(buffer2),
+                cout << "Nombre de Usuario: "; cin.width(256); cin >> buffer1;
+                cout << "Correo: "; cin.width(256); cin >> buffer2;
+                cout << "Contrasena: "; cin.width(256); cin >> buffer3;
+                Usuario nuevo(Cadena(buffer1), Cadena("2000-01-01"), Cadena(buffer2),
                               Cadena("default.jpg"), Cadena(buffer3), Cadena("Medellin"),
-                              Cadena("Colombia"), Cadena("14/10/2026"));
+                              Cadena("Colombia"), fechaActual());
                 if (registrarUsuario(nuevo)) {
                     guardarDatos();
                     cout << "\n[OK] Usuario registrado exitosamente." << endl;
@@ -370,92 +643,106 @@ void SistemaUdeaBook::ejecutarMenu() {
                 }
             }
         } else {
-            cout << " Usuario conectado: " << usuarios[usuarioAutenticadoIndex].GETNombreUsuario().GETDatos() << endl;
+            cout << "Usuario conectado: " << usuarios[usuarioAutenticadoIndex].GETNombreUsuario().GETDatos() << endl;
             cout << " 1. Enviar Mensaje" << endl;
             cout << " 2. Leer Nuevos Mensajes" << endl;
-            cout << " 3. Enviar Solicitud de Amistad" << endl;
-            cout << " 4. Aceptar Solicitud de Amistad" << endl;
-            cout << " 5. Visitar Perfil de Amigo" << endl;
-            cout << " 6. Cambiar Foto de Perfil (Alternar)" << endl;
-            cout << " 7. Ver Reporte de Recursos (Medidor)" << endl;
-            cout << " 8. Cerrar Sesion" << endl;
+            cout << " 3. Buscar Mensajes por Fecha" << endl;
+            cout << " 4. Enviar Solicitud de Amistad" << endl;
+            cout << " 5. Aceptar Solicitud de Amistad" << endl;
+            cout << " 6. Visitar Perfil de Amigo" << endl;
+            cout << " 7. Ver Sugerencias de Amistad" << endl;
+            cout << " 8. Actualizar Fotos de Mejores Amigos" << endl;
+            cout << " 9. Ver Reporte de Recursos (Medidor)" << endl;
+            cout << " 10. Cerrar Sesion" << endl;
             cout << "Seleccione una opcion: ";
 
-            int subOpcion;
-            if (!(cin >> subOpcion)) {
+            int subopcion;
+            if (!(cin >> subopcion)) {
+                if (cin.eof()) break;
                 cin.clear();
                 cin.ignore(10000, '\n');
+                cout << "\n[ERROR] Por favor ingresa un numero valido.\n";
                 continue;
             }
             cin.ignore(10000, '\n');
 
-
-            if (subOpcion == 1) {
+            if (subopcion == 1) {
+                char bufferMsj[514];
                 cout << "Destinatario: ";
-                cin >> buffer1;
-                cout << "Mensaje: ";
-                cin.ignore();
-                cin.getline(buffer2, 256);
-                enviarMensaje(Cadena(buffer1), Cadena(buffer2));
-                guardarDatos();
-
-            } else if (subOpcion == 2) {
+                cin.width(256); cin >> buffer1;
+                cin.ignore(10000, '\n');
+                cout << "Mensaje (max 512 caracteres): ";
+                cin.getline(bufferMsj, 514);
+                if (cin.fail()) {
+                    cin.clear();
+                    cin.ignore(10000, '\n');
+                    cout << "[ERROR] El mensaje no puede superar 512 caracteres." << endl;
+                } else {
+                    enviarMensaje(Cadena(buffer1), Cadena(bufferMsj));
+                    guardarDatos();
+                }
+            } else if (subopcion == 2) {
                 leerNuevosMensajes();
                 guardarDatos();
-
-            } else if (subOpcion == 3) {
-                cout << "Usuario a solicitar: "; cin >> buffer1;
+            } else if (subopcion == 3) {
+                cout << "Fecha de inicio (aaaa-mm-dd): "; cin.width(256); cin >> buffer1;
+                cout << "Fecha de fin (aaaa-mm-dd): "; cin.width(256); cin >> buffer2;
+                cin.ignore(10000, '\n');
+                buscarMensajesPorFecha(Cadena(buffer1), Cadena(buffer2));
+            } else if (subopcion == 4) {
+                cout << "Usuario a solicitar: "; cin.width(256); cin >> buffer1;
+                cin.ignore(10000, '\n');
                 enviarSolicitudAmistad(Cadena(buffer1));
                 guardarDatos();
-
-            } else if (subOpcion == 4) {
+            } else if (subopcion == 5) {
                 cout << "\n--- TUS SOLICITUDES PENDIENTES ---" << endl;
                 ArregloDinamico<SolicitudAmistad>& misSols = usuarios[usuarioAutenticadoIndex].GETSolicitudes();
                 int totalSols = misSols.GETTamanio();
                 bool hayPendientes = false;
-
                 for (int s = 0; s < totalSols; ++s) {
                     if (misSols[s].GETEstado() == Cadena("Pendiente")) {
                         cout << " - De: " << misSols[s].GETEmisor().GETDatos() << endl;
                         hayPendientes = true;
                     }
                 }
-
                 if (!hayPendientes) {
                     cout << "No tienes solicitudes pendientes." << endl;
                 } else {
                     cout << "Ingrese el nombre del usuario que le envio la solicitud: ";
-                    cin >> buffer1;
+                    cin.width(256); cin >> buffer1;
                     cin.ignore(10000, '\n');
                     aceptarSolicitudAmistad(Cadena(buffer1));
                     guardarDatos();
                 }
-
-            } else if (subOpcion == 5) {
-                cout << "Nombre del amigo: "; cin >> buffer1;
+            } else if (subopcion == 6) {
+                cout << "Nombre del amigo: "; cin.width(256); cin >> buffer1;
+                cin.ignore(10000, '\n');
                 visitarPerfilAmigo(Cadena(buffer1));
-
-            } else if (subOpcion == 6) {
-                cambiarFotosPerfil();
                 guardarDatos();
-
-            } else if (subOpcion == 7){
+            } else if (subopcion == 7) {
+                cout << "Cuantas sugerencias quieres ver (1 a 20): ";
+                int k = leerEntero();
+                verSugerenciasAmistad(k);
+                guardarDatos();
+            } else if (subopcion == 8) {
+                cambiarFotosPerfil();
+            } else if (subopcion == 9) {
                 size_t heapTotal = 0;
-                int totalU = matrizAmistades.getTotalUsuarios();
-
-                if (totalU > 0) {
-                    heapTotal += (totalU * totalU * sizeof(bool));
+                int totalu = matrizAmistades.getTotalUsuarios();
+                if (totalu > 0) {
+                    heapTotal += (totalu * totalu * sizeof(bool));
                 }
                 int numUsuarios = usuarios.GETTamanio();
                 heapTotal += (numUsuarios * sizeof(Usuario));
                 medidor.setMemoriaHeap(heapTotal);
                 medidor.setMemoriaStack(sizeof(*this));
                 medidor.reportarRecursos();
-
-            } else if (subOpcion == 8) {
+            } else if (subopcion == 10) {
                 usuarioAutenticadoIndex = -1;
                 guardarDatos();
                 cout << "\nSesion cerrada." << endl;
+            } else {
+                cout << "\n[ERROR] Opcion no valida." << endl;
             }
         }
     }

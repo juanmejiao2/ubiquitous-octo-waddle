@@ -13,6 +13,7 @@ public:
     ~Cadena();
     Cadena& operator=(const Cadena& otra);
     bool operator==(const Cadena& otra) const;
+    bool operator<(const Cadena& otra) const;
     int GETLongitud() const;
     const char* GETDatos() const;
 };

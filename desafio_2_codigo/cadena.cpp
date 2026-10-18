@@ -38,15 +38,19 @@ Cadena::Cadena(const Cadena& copia){
 }
 
 Cadena::~Cadena(){
-    delete[] datos;
+    if (datos !=nullptr){
+        delete[] datos;
+        datos= nullptr;
+    }
 }
 
 Cadena& Cadena::operator=(const Cadena& copia){
     if(this== &copia){
         return *this;
     }
-    delete[] datos;
-
+    if (datos !=nullptr){
+        delete[] datos;
+    }
     longitud= copia.longitud;
     datos= new char[longitud+1];
     for (int i=0; i<=longitud;i++){
@@ -61,6 +65,17 @@ bool Cadena::operator==(const Cadena& copia) const{
         if(datos[i]!= copia.datos[i]) return false;
     }
     return true;
+}
+
+bool Cadena::operator<(const Cadena& otra) const {
+    int i = 0;
+    while (i < longitud && i < otra.longitud && datos[i] == otra.datos[i]) {
+        i++;
+    }
+    if (i == longitud || i == otra.longitud) {
+        return longitud < otra.longitud;
+    }
+    return datos[i] < otra.datos[i];
 }
 
 int Cadena::GETLongitud() const{

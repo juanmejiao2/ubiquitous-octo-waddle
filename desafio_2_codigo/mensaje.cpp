@@ -37,5 +37,11 @@ Cadena Mensaje::GETcontenido() const{
 }
 
 bool Mensaje::operator<(const Mensaje& copia) const{
-    return FechaEnvio.GETLongitud() < copia.FechaEnvio.GETLongitud();
+    const char* a = FechaEnvio.GETDatos();
+    const char* b = copia.FechaEnvio.GETDatos();
+    int i = 0;
+    while (a[i] != '\0' && a[i] == b[i]) {
+        i++;
+    }
+    return a[i] < b[i];
 }
