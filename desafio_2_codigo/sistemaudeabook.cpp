@@ -38,7 +38,7 @@ SistemaUdeaBook::~SistemaUdeaBook() {
 }
 
 Cadena SistemaUdeaBook::leerCadenaDesdeArchivo(ifstream& archivo, char delimitador) {
-    char buffer[512];
+    char buffer[513];
     int pos = 0;
     char c;
     while (archivo.get(c)) {
@@ -46,7 +46,7 @@ Cadena SistemaUdeaBook::leerCadenaDesdeArchivo(ifstream& archivo, char delimitad
             if (c == '\r' && archivo.peek() == '\n') archivo.get();
             break;
         }
-        if (pos < 511) {
+        if (pos < 512) {
             buffer[pos++] = c;
         }
     }
@@ -113,6 +113,7 @@ void SistemaUdeaBook::cargarDatos() {
     }
 
     char bufferTipo[64];
+    archivo.width(64);
     while (archivo >> bufferTipo) {
         medidor.registrarIteracion();
         Cadena tipo(bufferTipo);
@@ -160,9 +161,83 @@ void SistemaUdeaBook::cargarDatos() {
                 }
             }
         }
+    else if (tipo == Cadena("[SOLICITUDES]")) {
+        int cantidad = 0;
+        archivo >> cantidad;
+        archivo.ignore(10000, '\n');
+        for (int i = 0; i < cantidad; ++i) {
+            medidor.registrarIteracion();
+            int idx = -1;
+            archivo >> idx;
+            archivo.ignore(1);
+            Cadena emisor = leerCadenaDesdeArchivo(archivo, ';');
+            Cadena estado = leerCadenaDesdeArchivo(archivo, '\n');
+            if (idx >= 0 && idx < usuarios.GETTamanio()) {
+                SolicitudAmistad sol(emisor, usuarios[idx].GETNombreUsuario());
+                sol.cambiarEstado(estado);
+                usuarios[idx].recibirSolicitud(sol);
+            }
+        }
     }
-    archivo.close();
+    else if (tipo == Cadena("[MENSAJES]")) {
+        int cantidad = 0;
+        archivo >> cantidad;
+        archivo.ignore(10000, '\n');
+        for (int i = 0; i < cantidad; ++i) {
+            medidor.registrarIteracion();
+            int idx = -1, leido = 0;
+            archivo >> idx;
+            archivo.ignore(1);
+            Cadena emisor = leerCadenaDesdeArchivo(archivo, ';');
+            Cadena fecha = leerCadenaDesdeArchivo(archivo, ';');
+            archivo >> leido;
+            archivo.ignore(1);
+            Cadena contenido = leerCadenaDesdeArchivo(archivo, '\n');
+            if (idx >= 0 && idx < usuarios.GETTamanio()) {
+                Mensaje msj(emisor, usuarios[idx].GETNombreUsuario(), contenido, fecha);
+                if (leido == 1) msj.marcarLeido();
+                usuarios[idx].recibirMensaje(msj);
+            }
+        }
+    }
+    else if (tipo == Cadena("[ALBUMES]")) {
+        int cantidad = 0;
+        archivo >> cantidad;
+        archivo.ignore(10000, '\n');
+        for (int i = 0; i < cantidad; ++i) {
+            medidor.registrarIteracion();
+            int idx = -1, numFotos = 0;
+            archivo >> idx;
+            archivo.ignore(1);
+            Cadena nombre = leerCadenaDesdeArchivo(archivo, ';');
+            Cadena privacidad = leerCadenaDesdeArchivo(archivo, ';');
+            Cadena ruta = leerCadenaDesdeArchivo(archivo, ';');
+            archivo >> numFotos;
+            archivo.ignore(10000, '\n');
+
+            Album album(nombre, ruta, privacidad);
+            for (int f = 0; f < numFotos; ++f) {
+                medidor.registrarIteracion();
+                int tamanio = 0, likes = 0;
+                Cadena fechaFoto = leerCadenaDesdeArchivo(archivo, ';');
+                archivo >> tamanio;
+                archivo.ignore(1);
+                archivo >> likes;
+                archivo.ignore(1);
+                Cadena rutaFoto = leerCadenaDesdeArchivo(archivo, '\n');
+                album.agregarFoto(Foto(fechaFoto, tamanio, rutaFoto, likes));
+            }
+            if (idx >= 0 && idx < usuarios.GETTamanio()) {
+                usuarios[idx].agregarAlbum(album);
+                }
+            }
+        }
+    archivo.width(64);
+   }
+archivo.close();
 }
+
+
 
 void SistemaUdeaBook::guardarDatos() {
     medidor.registrarIteracion();
@@ -191,8 +266,66 @@ void SistemaUdeaBook::guardarDatos() {
         }
         archivo << "\n";
     }
+
+    //Solicitudes
+    int totalSol = 0;
+    for (int i = 0; i < totalUsuarios; ++i) {
+        totalSol += usuarios[i].GETSolicitudes().GETTamanio();
+    }
+    archivo << "[SOLICITUDES]\n" << totalSol << "\n";
+    for (int i = 0; i < totalUsuarios; ++i) {
+        ArregloDinamico<SolicitudAmistad>& sols = usuarios[i].GETSolicitudes();
+        for (int s = 0; s < sols.GETTamanio(); ++s) {
+            medidor.registrarIteracion();
+            archivo << i << ";" << sols[s].GETEmisor().GETDatos() << ";"
+                    << sols[s].GETEstado().GETDatos() << "\n";
+        }
+    }
+
+    //Mensajes
+    int totalMsj = 0;
+    for (int i = 0; i < totalUsuarios; ++i) {
+        totalMsj += usuarios[i].GETMensajesRecibidos().GETTamanio();
+    }
+    archivo << "[MENSAJES]\n" << totalMsj << "\n";
+    for (int i = 0; i < totalUsuarios; ++i) {
+        ArregloDinamico<Mensaje>& msjs = usuarios[i].GETMensajesRecibidos();
+        for (int m = 0; m < msjs.GETTamanio(); ++m) {
+            medidor.registrarIteracion();
+            archivo << i << ";" << msjs[m].GETEmisor().GETDatos() << ";"
+                    << msjs[m].GETfecha().GETDatos() << ";"
+                    << (msjs[m].esLeido() ? 1 : 0) << ";"
+                    << msjs[m].GETcontenido().GETDatos() << "\n";
+        }
+    }
+
+    //albumes y fotos
+    int totalAlb = 0;
+    for (int i = 0; i < totalUsuarios; ++i) {
+        totalAlb += usuarios[i].GETAlbumes().GETTamanio();
+    }
+    archivo << "[ALBUMES]\n" << totalAlb << "\n";
+    for (int i = 0; i < totalUsuarios; ++i) {
+        ArregloDinamico<Album>& albs = usuarios[i].GETAlbumes();
+        for (int a = 0; a < albs.GETTamanio(); ++a) {
+            medidor.registrarIteracion();
+            ArregloDinamico<Foto>& fotos = albs[a].GETFotos();
+            archivo << i << ";" << albs[a].GETNombre().GETDatos() << ";"
+                    << albs[a].GETprivacidad().GETDatos() << ";"
+                    << albs[a].GETRuta().GETDatos() << ";"
+                    << fotos.GETTamanio() << "\n";
+            for (int f = 0; f < fotos.GETTamanio(); ++f) {
+                medidor.registrarIteracion();
+                archivo << fotos[f].GETFecha().GETDatos() << ";"
+                        << fotos[f].GETTamanio() << ";"
+                        << fotos[f].GETMeGusta() << ";"
+                        << fotos[f].GETRuta().GETDatos() << "\n";
+            }
+        }
+    }
     archivo.close();
 }
+
 
 bool SistemaUdeaBook::iniciarSesion(Cadena correo, Cadena contrasena) {
     medidor.registrarIteracion();

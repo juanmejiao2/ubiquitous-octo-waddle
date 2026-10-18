@@ -7,12 +7,13 @@ Foto::Foto() {
     rutaArchivo= Cadena("Sin ruta");
 }
 
-Foto::Foto(Cadena fecha, int tamanio, Cadena ruta){
+Foto::Foto(Cadena fecha, int tamanio, Cadena ruta, int likes){
     fechaCaptura= fecha;
     tamanioBytes= tamanio;
-    meGusta=0;
+    meGusta= (likes > 0) ? likes : 0;
     rutaArchivo=ruta;
 }
+
 
 void Foto::incrementarMeGusta(){
     meGusta++;
@@ -30,4 +31,12 @@ Cadena Foto::GETRuta() const{
 
 int Foto::GETMeGusta() const{
     return meGusta;
+}
+
+Cadena Foto::GETFecha() const{
+    return fechaCaptura;
+}
+
+int Foto::GETTamanio() const{
+    return tamanioBytes;
 }
