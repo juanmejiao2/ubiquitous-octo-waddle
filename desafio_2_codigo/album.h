@@ -22,6 +22,7 @@ public:
     ArregloDinamico<Foto>& GETFotos();
     Cadena GETprivacidad() const;
     Cadena GETNombre() const;
+    Cadena GETRuta() const;
 };
 
 #endif // ALBUM_H

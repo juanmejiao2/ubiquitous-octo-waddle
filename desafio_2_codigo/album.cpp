@@ -45,3 +45,6 @@ Cadena Album::GETprivacidad() const{
 Cadena Album::GETNombre() const{
     return nombreAlbum;
 }
+Cadena Album::GETRuta() const{
+    return rutaAlmacenamiento;
+}
